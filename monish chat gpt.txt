@@ -1,0 +1,138 @@
+import React, { useState, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+import { jsPDF } from "jspdf";
+
+export default function LegalNoticeForm() {
+  const [clientName, setClientName] = useState("");
+  const [clientDoubt, setClientDoubt] = useState("");
+  const [legalIssue, setLegalIssue] = useState("");
+  const [recipientName, setRecipientName] = useState("");
+  const [recipientAddress, setRecipientAddress] = useState("");
+  const [subject, setSubject] = useState("");
+  const [legalReferences, setLegalReferences] = useState("");
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [generatedNotice, setGeneratedNotice] = useState("");
+  const [noticeNumber, setNoticeNumber] = useState("");
+  const [clientPhoneNumber, setClientPhoneNumber] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  useEffect(() => {
+    const today = new Date().toLocaleDateString("en-GB").replace(/\//g, "");
+    const storedNoticeNumber = localStorage.getItem("lastNoticeNumber");
+    const newNoticeNumber = storedNoticeNumber ? parseInt(storedNoticeNumber) + 1 : `${today}-1000`;
+    setNoticeNumber(newNoticeNumber);
+    localStorage.setItem("lastNoticeNumber", newNoticeNumber);
+  }, [selectedDate]);
+
+  const generateNotice = () => {
+    if (!clientName || !clientDoubt || !legalIssue || !recipientName || !recipientAddress || !subject) {
+      alert("Please fill in all required fields before generating the notice.");
+      return;
+    }
+
+    setIsGenerating(true);
+    const formattedDate = selectedDate.toLocaleDateString();
+    const noticeTemplate = `
+      [Advocate's Letterhead]
+      S. Monish Kumar
+      Advocate Monish Legal Services
+      Block-5 A-Wing 1-G, Rani Meyyammai Towers, Sathyadev Avenue, MRC Nagar, Raja Annamalaipuram, Chennai - 600 028
+      Contact: Phone: 9710559911 | Website: https://www.advocatemonish.com/
+      
+      Notice No: ${noticeNumber}
+      Date: ${formattedDate}
+      
+      To,
+      ${recipientName}
+      ${recipientAddress}
+      
+      Subject: ${subject}
+      
+      Dear ${recipientName},
+      
+      This notice is being issued on behalf of ${clientName} regarding the legal issue: ${legalIssue}.
+      
+      Details of the case: ${clientDoubt}.
+      
+      Legal action is being considered based on the following laws (BNS/BNSS): ${legalReferences}.
+      
+      Kindly take note of the above and take necessary action to avoid further legal consequences.
+      
+      Sincerely,
+      S. Monish Kumar
+      
+      [Signature]
+      
+      Note: This notice requires the physical signature of Advocate Monish Kumar to be legally valid. Please contact him at 8883559911 for further proceedings.
+    `;
+    setGeneratedNotice(noticeTemplate);
+    sendEmail(noticeTemplate);
+    setIsGenerating(false);
+  };
+
+  const downloadPDF = () => {
+    if (!clientPhoneNumber.trim()) {
+      alert("Please enter your phone number to download the notice.");
+      return;
+    }
+    const doc = new jsPDF();
+    doc.setFont("times", "normal");
+    doc.setFontSize(12);
+    doc.text(generatedNotice, 10, 10, { maxWidth: 180 });
+    doc.save(`Legal_Notice_${noticeNumber}.pdf`);
+  };
+
+  const sendEmail = async (noticeContent) => {
+    try {
+      const response = await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: "advocatemonishchennai@gmail.com",
+          subject: `New Legal Notice Generated - ${noticeNumber}`,
+          text: noticeContent,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to send email");
+      }
+      alert("Email notification sent to Advocate Monish Kumar");
+    } catch (error) {
+      console.error("Email sending failed", error);
+      alert("Failed to send email. Please try again later.");
+    }
+  };
+
+  return (
+    <div className="p-6 max-w-3xl mx-auto">
+      <Card>
+        <CardContent className="p-6">
+          <h2 className="text-2xl font-bold mb-4 text-center">Legal Notice Drafting Form</h2>
+          <div className="space-y-3">
+            <Input placeholder="Client Name" value={clientName} onChange={(e) => setClientName(e.target.value)} required />
+            <Textarea placeholder="Describe the Client's Doubt / Scenario" value={clientDoubt} onChange={(e) => setClientDoubt(e.target.value)} required />
+            <Input placeholder="Legal Issue Details" value={legalIssue} onChange={(e) => setLegalIssue(e.target.value)} required />
+            <Input placeholder="Recipient Name" value={recipientName} onChange={(e) => setRecipientName(e.target.value)} required />
+            <Input placeholder="Recipient Address" value={recipientAddress} onChange={(e) => setRecipientAddress(e.target.value)} required />
+            <Input placeholder="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} required />
+            <Input placeholder="Legal References (BNS/BNSS)" value={legalReferences} onChange={(e) => setLegalReferences(e.target.value)} />
+            <DatePicker selected={selectedDate} onChange={(date) => setSelectedDate(date)} className="w-full" />
+            <Button onClick={generateNotice} className="w-full" disabled={isGenerating}>{isGenerating ? "Generating..." : "Generate Legal Notice"}</Button>
+            {generatedNotice && (
+              <>
+                <Input placeholder="Enter Your Phone Number" value={clientPhoneNumber} onChange={(e) => setClientPhoneNumber(e.target.value)} required />
+                <Button onClick={downloadPDF} className="w-full mt-2">Download as PDF</Button>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
