@@ -1,0 +1,21 @@
+// Import Wix Modules
+import { ok, notFound, serverError } from 'wix-http-functions';
+
+// Example AI function to generate a legal notice
+export function post_generateNotice(request) {
+    return request.body.json()
+        .then(body => {
+            const userInput = body.userInput;
+            if (!userInput) {
+                return notFound({ message: "User input is missing." });
+            }
+
+            // AI logic to generate a legal notice (replace this with actual AI code)
+            const legalNotice = `This is a legal notice generated for: ${userInput}`;
+
+            return ok({ notice: legalNotice });
+        })
+        .catch(error => {
+            return serverError({ message: "Error processing request.", error });
+        });
+}
